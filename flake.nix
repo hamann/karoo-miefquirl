@@ -51,6 +51,10 @@
               pkgs.jdk17            # AGP 8.9 requires JDK 17
               pkgs.gradle
               android.androidsdk
+              # Release signing material lives encrypted in secrets.yaml; CI
+              # decrypts it with a dedicated age key.
+              pkgs.sops
+              pkgs.age
               pkgs.kotlin-language-server
             ];
 

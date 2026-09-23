@@ -306,29 +306,36 @@ version back out of the built APK rather than restating it, so the manifest and
 the APK cannot disagree, and it refuses to package an unsigned APK — one of
 those installs for nobody.
 
-Signing keys never live in the repo. The release build looks for them in the
-environment and leaves the APK unsigned when they are absent, so a fresh clone
-still builds:
+Signing material lives encrypted in `secrets.yaml`, committed to the repo and
+sealed with sops to two age recipients: you, and a dedicated `github_actions`
+key that exists only as the `SOPS_AGE_KEY` repository secret. That makes
+`secrets.yaml` the single source of truth — rotating the key is a re-encrypt
+and a commit, with nothing to re-push anywhere — and revoking CI is a matter of
+dropping that recipient from `.sops.yaml` and re-encrypting.
 
-| | |
-|---|---|
-| `MIEFQUIRL_KEYSTORE` | path to the keystore |
-| `MIEFQUIRL_KEYSTORE_PASSWORD` | |
-| `MIEFQUIRL_KEY_ALIAS` | defaults to `miefquirl` |
-| `MIEFQUIRL_KEY_PASSWORD` | |
-
-To set one up:
+First time:
 
 ```sh
-keytool -genkeypair -v -keystore miefquirl.jks -alias miefquirl \
-    -keyalg RSA -keysize 4096 -validity 10000
+nix develop
+tools/init-signing.sh          # creates miefquirl.jks, seals it into secrets.yaml
+age-keygen -o ci-age.key       # the key CI will use
+gh secret set SOPS_AGE_KEY < ci-age.key
 ```
 
-Keep that file out of the repo, and give CI the secrets `KEYSTORE_BASE64`
-(`base64 -i miefquirl.jks`), `KEYSTORE_PASSWORD`, `KEY_ALIAS` and
-`KEY_PASSWORD`. **Losing the keystore means no existing install can ever be
-updated** — Android rejects an APK signed with a different key — so it is worth
-keeping alongside your other secrets rather than only on one machine.
+`init-signing.sh` generates the password itself and never prints it, so it
+stays out of your shell history. The raw `.jks` and `ci-age.key` are gitignored;
+the encrypted copy is the one that matters.
+
+To build a signed release locally:
+
+```sh
+source tools/load-signing.sh
+(cd android && gradle assembleRelease)
+```
+
+**Losing `secrets.yaml` and the age key together means no existing install can
+ever be updated** — Android refuses an APK signed with a different key. The
+encrypted file in git is what stops that being a single-machine risk.
 
 CI needs no personal access token: the workflow grants `packages: read` so the
 built-in `GITHUB_TOKEN` can fetch karoo-ext.

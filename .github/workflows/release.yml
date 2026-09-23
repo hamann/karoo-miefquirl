@@ -24,11 +24,6 @@ jobs:
   release:
     runs-on: ubuntu-latest
 
-    env:
-      # secrets cannot be referenced from a step-level `if`, so hoist the
-      # question of whether signing is configured into a plain string here.
-      HAS_KEYSTORE: ${{ secrets.KEYSTORE_BASE64 != '' }}
-
     steps:
       - uses: actions/checkout@v4
 
@@ -40,18 +35,18 @@ jobs:
         # :headwind free of Android and karoo-ext.
         run: nix develop --command make test
 
-      - name: Restore the signing keystore
-        if: env.HAS_KEYSTORE == 'true'
-        run: echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > "$RUNNER_TEMP/miefquirl.jks"
+      # One repository secret, not four: the dedicated age key from .sops.yaml.
+      # secrets.yaml in the repo stays the single source of truth, so rotating
+      # the signing key is a re-encrypt and a commit.
+      - name: Decrypt the signing material
+        env:
+          SOPS_AGE_KEY: ${{ secrets.SOPS_AGE_KEY }}
+        run: nix develop --command tools/load-signing.sh
 
       - name: Build the release APK
         env:
           GITHUB_ACTOR: ${{ github.actor }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          MIEFQUIRL_KEYSTORE: ${{ runner.temp }}/miefquirl.jks
-          MIEFQUIRL_KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
-          MIEFQUIRL_KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
-          MIEFQUIRL_KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: nix develop --command bash -c 'cd android && gradle assembleRelease'
 
       - name: Collect release artefacts

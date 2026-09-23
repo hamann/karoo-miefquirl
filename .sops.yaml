@@ -1,0 +1,14 @@
+# Recipients. `github_actions` is a dedicated key held only as the SOPS_AGE_KEY
+# repository secret, so CI can decrypt release signing material without anyone
+# handing it a personal key. Revoking it is a matter of dropping it from here
+# and re-encrypting.
+keys:
+  - &user_hamann age19ftxf5pwxqxjw74mmnyacxtvmgetc3rvnqv0zwy2w6thdnhj3vaqqxyvwz
+  - &github_actions age1la2ue4gmx0x80f5d27chsvmqkkl8fv25xw98dcv9j90yku249ujqp4aha8
+
+creation_rules:
+  - path_regex: secrets.yaml$
+    key_groups:
+      - age:
+          - *user_hamann
+          - *github_actions
