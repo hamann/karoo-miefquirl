@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Miefquirl</string>
+    <string name="extension_name">Headwind</string>
+
+    <string name="fan_speed">Fan</string>
+    <string name="fan_speed_description">Wahoo Headwind output, 0–100%</string>
+
+    <string name="action_up">Fan +</string>
+    <string name="action_down">Fan −</string>
+    <string name="action_toggle">Fan on/off</string>
+    <string name="action_off">Fan off</string>
+
+    <string name="alert_title">Headwind</string>
+
+    <string name="field_down">−</string>
+    <string name="field_up">+</string>
+</resources>

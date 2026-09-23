@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Data field rendered as RemoteViews and inflated by the Karoo in its own
+  process. Only the RemoteViews-compatible view set may be used here — no
+  custom views, no ConstraintLayout.
+
+  Value on top, controls beneath it, so the number keeps the full width of the
+  field and the two buttons still get a generous tap target each. The value
+  itself is the on/off toggle.
+
+  The buttons carry PendingIntents so that taps come back to FanActionReceiver
+  in this app.
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:baselineAligned="false">
+
+    <TextView
+        android:id="@+id/fan_value"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="2"
+        android:gravity="center"
+        android:includeFontPadding="false"
+        android:textStyle="bold"
+        android:textColor="?android:attr/textColorPrimary"
+        android:clickable="true"
+        android:focusable="true" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:orientation="horizontal"
+        android:baselineAligned="false">
+
+        <TextView
+            android:id="@+id/fan_down"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:layout_marginEnd="2dp"
+            android:gravity="center"
+            android:text="@string/field_down"
+            android:textSize="26sp"
+            android:textStyle="bold"
+            android:textColor="#FFFFFFFF"
+            android:background="#FF404040"
+            android:clickable="true"
+            android:focusable="true" />
+
+        <TextView
+            android:id="@+id/fan_up"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:gravity="center"
+            android:text="@string/field_up"
+            android:textSize="26sp"
+            android:textStyle="bold"
+            android:textColor="#FFFFFFFF"
+            android:background="#FF404040"
+            android:clickable="true"
+            android:focusable="true" />
+
+    </LinearLayout>
+
+</LinearLayout>

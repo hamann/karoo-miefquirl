@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  BonusActions are bound to buttons on a paired controller in the Karoo's
+  settings — they are not in-ride menu entries. The actionIds below are passed
+  verbatim to FanControl.plan; keep them in sync with FanAction.
+-->
+<ExtensionInfo
+    displayName="@string/extension_name"
+    icon="@drawable/ic_fan"
+    id="miefquirl"
+    scansDevices="false">
+
+    <DataType
+        description="@string/fan_speed_description"
+        displayName="@string/fan_speed"
+        graphical="true"
+        icon="@drawable/ic_fan"
+        typeId="fan-speed" />
+
+    <BonusAction
+        displayName="@string/action_up"
+        actionId="up" />
+    <BonusAction
+        displayName="@string/action_down"
+        actionId="down" />
+    <BonusAction
+        displayName="@string/action_toggle"
+        actionId="toggle" />
+    <BonusAction
+        displayName="@string/action_off"
+        actionId="off" />
+
+</ExtensionInfo>
