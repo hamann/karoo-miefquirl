@@ -1,0 +1,19 @@
+name: ci
+
+# The domain logic lives in a plain Kotlin JVM module with no Android and no
+# karoo-ext, so this needs neither the SDK nor GitHub Packages credentials.
+# Building the app itself is left to the release workflow, which has them.
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: DeterminateSystems/nix-installer-action@main
+      - uses: DeterminateSystems/magic-nix-cache-action@main
+      - run: nix develop --command make test

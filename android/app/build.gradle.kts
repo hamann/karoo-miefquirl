@@ -4,6 +4,13 @@ plugins {
     alias(libs.plugins.compose.compiler)
 }
 
+// Release signing. The keystore never lives in the repo: point at it with
+// MIEFQUIRL_KEYSTORE and friends, either exported locally or injected by CI.
+// When they are absent the release build is simply left unsigned, so a clone
+// without the key still builds.
+val keystorePath: String? = System.getenv("MIEFQUIRL_KEYSTORE")
+    ?: providers.gradleProperty("miefquirl.keystore").orNull
+
 android {
     namespace = "io.github.hamann.miefquirl"
     compileSdk = 35
@@ -34,8 +41,24 @@ android {
         jvmTarget = "17"
     }
 
+    signingConfigs {
+        if (keystorePath != null) {
+            create("release") {
+                storeFile = file(keystorePath)
+                storePassword = System.getenv("MIEFQUIRL_KEYSTORE_PASSWORD")
+                    ?: providers.gradleProperty("miefquirl.keystore.password").orNull
+                keyAlias = System.getenv("MIEFQUIRL_KEY_ALIAS")
+                    ?: providers.gradleProperty("miefquirl.key.alias").orNull
+                    ?: "miefquirl"
+                keyPassword = System.getenv("MIEFQUIRL_KEY_PASSWORD")
+                    ?: providers.gradleProperty("miefquirl.key.password").orNull
+            }
+        }
+    }
+
     buildTypes {
         release {
+            signingConfig = signingConfigs.findByName("release")
             // Off until a release build has actually been exercised on-device.
             // karoo-ext serialises its models with kotlinx.serialization, whose
             // serializers R8 cannot see; proguard-rules.pro keeps them, but that

@@ -291,6 +291,52 @@ Not yet exercised:
 > any page that already had it, frozen at its last value and painted under the
 > new view. Remove the field from the page and add it back after such a change.
 
+## Releasing
+
+Tagging a version builds a signed APK and the `manifest.json` the Karoo reads
+to offer updates, and attaches both to a GitHub release:
+
+```sh
+git tag v0.1.0 && git push origin v0.1.0
+```
+
+`MANIFEST_URL` in the manifest points at the *latest* release's assets, so it
+keeps working without being edited. `tools/package-release.sh` reads the
+version back out of the built APK rather than restating it, so the manifest and
+the APK cannot disagree, and it refuses to package an unsigned APK — one of
+those installs for nobody.
+
+Signing keys never live in the repo. The release build looks for them in the
+environment and leaves the APK unsigned when they are absent, so a fresh clone
+still builds:
+
+| | |
+|---|---|
+| `MIEFQUIRL_KEYSTORE` | path to the keystore |
+| `MIEFQUIRL_KEYSTORE_PASSWORD` | |
+| `MIEFQUIRL_KEY_ALIAS` | defaults to `miefquirl` |
+| `MIEFQUIRL_KEY_PASSWORD` | |
+
+To set one up:
+
+```sh
+keytool -genkeypair -v -keystore miefquirl.jks -alias miefquirl \
+    -keyalg RSA -keysize 4096 -validity 10000
+```
+
+Keep that file out of the repo, and give CI the secrets `KEYSTORE_BASE64`
+(`base64 -i miefquirl.jks`), `KEYSTORE_PASSWORD`, `KEY_ALIAS` and
+`KEY_PASSWORD`. **Losing the keystore means no existing install can ever be
+updated** — Android rejects an APK signed with a different key — so it is worth
+keeping alongside your other secrets rather than only on one machine.
+
+CI needs no personal access token: the workflow grants `packages: read` so the
+built-in `GITHUB_TOKEN` can fetch karoo-ext.
+
+## Licence
+
+Apache-2.0 — see [LICENSE](LICENSE) and [NOTICE](NOTICE).
+
 ## Scope
 
 Manual control only, by choice. The Headwind has its own heart-rate and speed

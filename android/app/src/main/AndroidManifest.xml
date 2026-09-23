@@ -56,6 +56,13 @@
                 android:resource="@xml/extension_info" />
         </service>
 
+        <!-- Where the Karoo looks for release information and updates. GitHub
+             serves the newest release's assets from this path, so it keeps
+             pointing at the current version without being edited. -->
+        <meta-data
+            android:name="io.hammerhead.karooext.MANIFEST_URL"
+            android:value="https://github.com/hamann/karoo-miefquirl/releases/latest/download/manifest.json" />
+
     </application>
 
 </manifest>

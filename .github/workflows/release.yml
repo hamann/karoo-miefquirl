@@ -1,0 +1,68 @@
+name: release
+
+# Tag a version to cut a release:
+#   git tag v0.1.0 && git push origin v0.1.0
+#
+# Produces a signed APK and the manifest.json the Karoo reads to offer updates.
+# Both are attached to the release, which is what MANIFEST_URL points at.
+#
+# The toolchain comes from flake.nix, same as locally — there is no Gradle
+# wrapper in this repo on purpose, so CI and a developer machine cannot end up
+# on different versions of anything.
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  # karoo-ext lives in GitHub Packages, which demands authentication even for
+  # public packages. This lets GITHUB_TOKEN fetch it, so no PAT is needed here.
+  packages: read
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    env:
+      # secrets cannot be referenced from a step-level `if`, so hoist the
+      # question of whether signing is configured into a plain string here.
+      HAS_KEYSTORE: ${{ secrets.KEYSTORE_BASE64 != '' }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: DeterminateSystems/nix-installer-action@main
+      - uses: DeterminateSystems/magic-nix-cache-action@main
+
+      - name: Run the domain tests
+        # Needs neither the Android SDK nor credentials — the point of keeping
+        # :headwind free of Android and karoo-ext.
+        run: nix develop --command make test
+
+      - name: Restore the signing keystore
+        if: env.HAS_KEYSTORE == 'true'
+        run: echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > "$RUNNER_TEMP/miefquirl.jks"
+
+      - name: Build the release APK
+        env:
+          GITHUB_ACTOR: ${{ github.actor }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          MIEFQUIRL_KEYSTORE: ${{ runner.temp }}/miefquirl.jks
+          MIEFQUIRL_KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          MIEFQUIRL_KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          MIEFQUIRL_KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: nix develop --command bash -c 'cd android && gradle assembleRelease'
+
+      - name: Collect release artefacts
+        env:
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GITHUB_REF_NAME: ${{ github.ref_name }}
+        run: nix develop --command tools/package-release.sh
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            miefquirl.apk
+            manifest.json
+          generate_release_notes: true

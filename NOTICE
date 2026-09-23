@@ -1,0 +1,18 @@
+karoo-miefquirl
+Copyright 2026 Holger Amann
+
+The Wahoo KICKR Headwind's BLE protocol is undocumented. The service and
+characteristic identifiers and the frame layouts used here were established by
+three independent reverse-engineering efforts, and are used as facts about a
+wire format rather than as copied source:
+
+  garanj/wearwind            https://github.com/garanj/wearwind
+  tuna-f1sh/tailwind         https://github.com/tuna-f1sh/tailwind
+  myanshin/headwind_control  https://github.com/myanshin/headwind_control
+
+Built against karoo-ext (Apache-2.0), copyright SRAM LLC.
+https://github.com/hammerheadnav/karoo-ext
+
+Wahoo, KICKR and Headwind are trademarks of Wahoo Fitness. Hammerhead and
+Karoo are trademarks of Hammerhead/SRAM. This project is not affiliated with
+or endorsed by either.
