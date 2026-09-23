@@ -128,6 +128,27 @@ Three behaviours worth knowing, all handled in `FanControl.kt` and
 The fan also does not advertise its control service, so scanning filters on the
 advertised *name* rather than on the service UUID.
 
+### Scanning and battery
+
+The missing service UUID has a cost: a `ScanFilter` can never match, so the
+scan has to be unfiltered and every nearby beacon wakes the process. Left
+unbounded at `SCAN_MODE_LOW_LATENCY` that would run the radio flat out for a
+whole ride with the fan sitting at home — which is most rides.
+
+So discovery runs in bounded windows instead:
+
+| | |
+|---|---|
+| Scan mode | `SCAN_MODE_BALANCED` — about a quarter of the radio time |
+| Window | 12 seconds |
+| Gap after a miss | 5s, 15s, 30s, 60s, then 300s |
+
+It settles at a twelve-second look every five minutes. A connection that drops
+restarts discovery with a *fresh* backoff, since a fan that just vanished is
+worth looking for promptly, unlike one that was never there. The numbers also
+stay under Android's limit of five scan starts per thirty seconds, which
+repeated short scans would otherwise trip.
+
 ### The other modes
 
 This extension only ever uses `off` and `manual`, but the fan accepts all five.

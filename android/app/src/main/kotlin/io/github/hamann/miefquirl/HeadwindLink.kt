@@ -113,7 +113,7 @@ class HeadwindLink(
     private val writeAcks = Channel<Unit>(Channel.CONFLATED)
 
     private var worker: Job? = null
-    private var retry: Job? = null
+    private var discovery: Job? = null
 
     @Volatile
     private var scanning = false
@@ -138,14 +138,14 @@ class HeadwindLink(
             return
         }
         worker = scope.launch {
-            beginScan()
+            startDiscovery()
             processCommands()
         }
     }
 
     fun stop() {
-        retry?.cancel()
-        retry = null
+        discovery?.cancel()
+        discovery = null
         stopScan()
         gatt?.let {
             runCatching { it.disconnect() }
@@ -270,25 +270,53 @@ class HeadwindLink(
             }
         }
 
-    private fun beginScan() {
-        if (scanning || gatt != null) return
+    /**
+     * Look for the fan in short windows, backing off when it is not there.
+     *
+     * This matters more than it looks. The scan has to be unfiltered — the
+     * Headwind keeps its control service out of the advertisement, so a
+     * ScanFilter never matches and the advertised name is the only thing to go
+     * on — which means every nearby beacon wakes this process. An unbounded
+     * scan would run flat out for an entire ride with the fan sitting at home,
+     * which is most rides. So: bounded windows, a moderate duty cycle, and a
+     * backoff that settles at one brief look every few minutes.
+     */
+    private fun startDiscovery() {
+        if (discovery?.isActive == true || gatt != null) return
+        discovery = scope.launch {
+            var attempt = 0
+            while (gatt == null) {
+                if (!scanWindow()) return@launch
+                if (gatt != null) break
+
+                val wait = RETRY_BACKOFF_MS[minOf(attempt, RETRY_BACKOFF_MS.lastIndex)]
+                attempt++
+                Timber.d("fan not found, next look in %ds", wait / 1000)
+                delay(wait)
+            }
+        }
+    }
+
+    /** One scan window. Returns false only if the radio is unusable. */
+    private suspend fun scanWindow(): Boolean {
         val scanner = adapter?.bluetoothLeScanner
         if (scanner == null) {
             Timber.w("no BLE scanner available")
             _link.value = Link.Unavailable
-            return
+            return false
         }
         scanning = true
         _link.value = Link.Scanning
-        // Unfiltered on purpose. The Headwind keeps its control service out of
-        // the advertisement, so a ScanFilter on the service UUID never matches
-        // and the advertised name is the only thing to go on — which is what
-        // wearwind, tailwind and headwind_control all do.
         scanner.startScan(
             emptyList(),
-            ScanSettings.Builder().setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY).build(),
+            // BALANCED rather than LOW_LATENCY: a quarter of the radio time,
+            // and the fan advertises often enough to still be found in seconds.
+            ScanSettings.Builder().setScanMode(ScanSettings.SCAN_MODE_BALANCED).build(),
             scanCallback,
         )
+        delay(SCAN_WINDOW_MS)
+        stopScan()
+        return true
     }
 
     private fun stopScan() {
@@ -296,14 +324,6 @@ class HeadwindLink(
         scanning = false
         // Throws if the adapter was switched off underneath us.
         runCatching { adapter?.bluetoothLeScanner?.stopScan(scanCallback) }
-    }
-
-    private fun retryLater() {
-        retry?.cancel()
-        retry = scope.launch {
-            delay(RETRY_DELAY_MS)
-            beginScan()
-        }
     }
 
     private val scanCallback = object : ScanCallback() {
@@ -322,7 +342,6 @@ class HeadwindLink(
             Timber.e("scan failed with %d", errorCode)
             scanning = false
             _link.value = Link.Lost
-            retryLater()
         }
     }
 
@@ -340,7 +359,9 @@ class HeadwindLink(
                     this@HeadwindLink.gatt = null
                     runCatching { gatt.close() }
                     _link.value = Link.Lost
-                    retryLater()
+                    // Fresh backoff: a fan that just vanished is worth looking
+                    // for promptly, unlike one that was never there.
+                    startDiscovery()
                 }
             }
         }
@@ -435,6 +456,14 @@ class HeadwindLink(
         val CCCD_UUID: UUID = UUID.fromString("00002902-0000-1000-8000-00805f9b34fb")
 
         const val WRITE_TIMEOUT_MS = 1_000L
-        const val RETRY_DELAY_MS = 5_000L
+
+        /** How long each look for the fan lasts. */
+        const val SCAN_WINDOW_MS = 12_000L
+
+        /**
+         * Gap after each unsuccessful window, settling at one look every five
+         * minutes so a ride with the fan left at home costs almost nothing.
+         */
+        val RETRY_BACKOFF_MS = longArrayOf(5_000, 15_000, 30_000, 60_000, 300_000)
     }
 }
