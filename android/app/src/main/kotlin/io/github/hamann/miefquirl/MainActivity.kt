@@ -99,10 +99,7 @@ private fun MiefquirlScreen(link: HeadwindLink) {
         }
 
         Text(
-            text = "Add “Fan” to a data page to see the speed while riding. " +
-                "To control it without opening this app, pair a remote and " +
-                "assign Fan +, Fan − or Fan on/off to its buttons in " +
-                "Settings → Controllers.",
+            text = "Add “Fan” to a data page to control the fan while riding.",
             style = MaterialTheme.typography.bodySmall,
             textAlign = TextAlign.Center,
         )

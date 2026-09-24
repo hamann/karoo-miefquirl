@@ -28,10 +28,11 @@ data class Fan(
 /**
  * The actions this extension exposes.
  *
- * These are karoo-ext "bonus actions": the Karoo assigns them to buttons on a
- * paired controller (Di2, AXS, a BLE remote), not to an in-ride menu — there is
- * no extension API for adding menu entries. The settings activity drives the
- * same actions directly.
+ * These are karoo-ext "bonus actions". There is no extension API for adding
+ * in-ride menu entries; the SDK says only that an action "can be assigned to a
+ * controller", without naming any hardware, and that has not been confirmed to
+ * work. What does drive them is the data field and the settings activity, both
+ * of which call straight into [FanControl.plan].
  */
 enum class FanAction(val id: String) {
     UP("up"),

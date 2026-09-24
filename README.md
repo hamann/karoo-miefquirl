@@ -16,24 +16,12 @@ tapping a data field.
 No phone, no remote, no reaching down for the fan mid-effort. Add the **Fan**
 field to a data page and it sizes itself to whatever space you give it.
 
-The number is what the fan has actually confirmed, not what was asked for, so
-it never claims a speed the fan did not reach.
-
-If you have a controller paired — Di2, SRAM AXS, a BLE remote — the same four
-actions (*Fan +*, *Fan −*, *Fan on/off*, *Fan off*) can be bound to its buttons
-under **Settings → Controllers**.
-
 *A Miefquirl is what German calls one of these: a fug-whisker, the thing that
 stirs up stale air.*
 
 ---
 
 ## Install
-
-Not in Hammerhead's
-[Extensions Library](https://support.hammerhead.io/hc/en-us/articles/34676015530907-Karoo-OS-Extensions-Library)
-yet — that would let you install it straight from the Karoo's main menu. Until
-then, sideloading.
 
 On a **Karoo 3**, using the Hammerhead Companion app — this is Hammerhead's
 [sideloading procedure](https://support.hammerhead.io/hc/en-us/articles/31576497036827-Companion-App-Sideloading),
@@ -50,11 +38,6 @@ and no cable is involved:
 
 Switch the fan on and it connects by itself, usually within a few seconds. The
 field reads `OFF` until it does.
-
-On a **Karoo 2**, download the APK and install it over adb instead — DC
-Rainmaker has a
-[guide to setting that up](https://www.dcrainmaker.com/2021/02/how-to-sideload-android-apps-on-your-hammerhead-karoo-1-karoo-2.html).
-Everything from step 4 is the same. Note that only the Karoo 3 has been tested.
 
 ### Updating
 
@@ -94,8 +77,13 @@ What has been tested on the device:
 
 What has not:
 
-- The four actions driven from a **paired controller**. The code path is the
-  same one the data field uses, but no remote was available to try it.
+- **Driving it from a shifter button.** The four actions are also published as
+  karoo-ext *bonus actions*, which the Karoo is meant to be able to bind to a
+  controller. On paper that means a SRAM AXS bonus button, mapped under
+  Sensors → your AXS groupset → *Configure Controls*. Whether extension actions
+  actually appear in that list is unconfirmed, and there was no AXS hardware
+  here to find out. Shimano Di2 is not a candidate — Hammerhead removed Di2
+  integration in 2022 and its buttons cannot be reassigned.
 - The fan being **switched off at the wall mid-ride**.
 - Anything other than a **Karoo 3** on Android 12.
 
