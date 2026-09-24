@@ -332,7 +332,18 @@ class HeadwindLink(
             val name = result.scanRecord?.deviceName ?: device.name ?: return
             if (!name.startsWith(Headwind.DEVICE_NAME_PREFIX, ignoreCase = true)) return
 
-            Timber.i("found %s at %s", name, device.address)
+            // Whether the fan puts its control service in the advertisement
+            // decides whether a hardware ScanFilter is possible at all, and
+            // that in turn is why this scan is unfiltered and has to be
+            // rationed. Worth knowing rather than assuming.
+            val advertised = result.scanRecord?.serviceUuids
+            Timber.i(
+                "found %s at %s; advertised services=%s, ours advertised=%s",
+                name,
+                device.address,
+                advertised ?: "none",
+                advertised?.any { it.uuid == serviceUuid } == true,
+            )
             stopScan()
             _link.value = Link.Connecting
             gatt = device.connectGatt(context, false, gattCallback, BluetoothDevice.TRANSPORT_LE)

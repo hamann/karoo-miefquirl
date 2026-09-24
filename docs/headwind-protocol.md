@@ -71,13 +71,22 @@ Behaviours worth knowing before writing anything against this:
   resynchronised from an `FD` frame while a press is still in flight —
   otherwise that stale frame rolls the pending command back.
 
-The fan also does not advertise its control service, so scanning filters on the
-advertised *name* rather than on the service UUID.
+The fan advertises **no service UUIDs at all** — measured, not assumed:
+
+```
+found HEADWIND A86B at E5:E0:C8:E0:CA:6A; advertised services=none
+```
+
+So discovery has to match on the advertised *name*, and a `ScanFilter` is out:
+`setServiceUuid` can never match, and `setDeviceName` wants an exact string
+rather than a prefix. A fan that has been renamed cannot be found at all on a
+first run.
 
 ## Scanning, and what it costs
 
-The missing service UUID has a cost: a `ScanFilter` can never match, so the
-scan has to be unfiltered and every nearby beacon wakes the process. Left
+The empty advertisement has a cost: a `ScanFilter` can never match, so the scan
+has to be unfiltered and every nearby beacon wakes the process rather than
+being rejected in the Bluetooth controller. Left
 unbounded at `SCAN_MODE_LOW_LATENCY` that would run the radio flat out for a
 whole ride with the fan sitting at home — which is most rides.
 
