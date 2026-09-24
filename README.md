@@ -69,11 +69,12 @@ The field stays on `OFF` and tapping does nothing:
 
 ## Status
 
-Working, and used on a real Karoo 3 against a real Headwind. Version 0.1.0.
+Working, and used on a real Karoo 3 against a real Headwind. Version 0.2.0.
 
 What has been tested on the device:
 
-- Finding and connecting to the fan, and reconnecting by itself afterwards
+- Finding the fan, remembering it, and reconnecting to it in about 7 seconds
+  without searching
 - Stepping the speed, switching off, and toggling back to the previous speed
 - The data field showing the fan's confirmed speed, updating in about 150ms
 - A brief on-screen confirmation on each press
