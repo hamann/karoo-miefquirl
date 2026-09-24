@@ -56,7 +56,7 @@ class HeadwindLink(
     private val context: Context,
     private val scope: CoroutineScope,
 ) {
-    enum class Link { Idle, Scanning, Connecting, Ready, Lost, Unavailable }
+    enum class Link { Idle, Scanning, Waiting, Connecting, Ready, Lost, Unavailable }
 
     /**
      * What the fan has actually confirmed, by acknowledgement or by its own
@@ -118,6 +118,43 @@ class HeadwindLink(
     @Volatile
     private var scanning = false
 
+    /**
+     * True while the connection is the stack's to re-establish.
+     *
+     * With autoConnect the Bluetooth controller reconnects on its own whenever
+     * the fan reappears, at far less cost than scanning for it. That only holds
+     * while the BluetoothGatt stays open — closing it cancels the pending
+     * reconnect — so the disconnect path has to behave differently here.
+     */
+    @Volatile
+    private var autoReconnecting = false
+
+    /**
+     * True while a direct connection to a known fan is outstanding.
+     *
+     * autoConnect is cheap but leisurely — measured at around 100 seconds to
+     * pick the fan up, against 11 for a scan — because the controller polls at
+     * a low duty cycle. A direct connect is immediate when the fan is already
+     * on, which is the usual case, so it is tried first and autoConnect is what
+     * it falls back to.
+     */
+    @Volatile
+    private var directAttempt = false
+
+    private val prefs by lazy {
+        context.getSharedPreferences("miefquirl", Context.MODE_PRIVATE)
+    }
+
+    /**
+     * The fan we have met before.
+     *
+     * The address survives a rename, so once this is set the fan is findable
+     * even though discovery itself can only match on the advertised name.
+     */
+    private var knownAddress: String?
+        get() = prefs.getString(KEY_ADDRESS, null)
+        set(value) = prefs.edit().putString(KEY_ADDRESS, value).apply()
+
     private sealed interface Command {
         class Press(val action: String) : Command
         class Notified(val frame: ByteArray) : Command
@@ -138,14 +175,74 @@ class HeadwindLink(
             return
         }
         worker = scope.launch {
-            startDiscovery()
+            // Scanning is the expensive path and the only one available the
+            // first time. After that the address is enough.
+            val known = knownAddress
+            if (known != null) {
+                reconnectTo(known, direct = true)
+            } else {
+                startDiscovery()
+            }
             processCommands()
         }
     }
 
+    /**
+     * Hand the fan to the Bluetooth stack to reconnect whenever it appears.
+     *
+     * Costs nothing while it waits, unlike scanning, and it is immediate once
+     * the fan powers up rather than waiting out a scan window and a backoff.
+     */
+    private fun reconnectTo(address: String, direct: Boolean) {
+        val device = runCatching { adapter?.getRemoteDevice(address) }.getOrNull()
+        if (device == null) {
+            Timber.w("stored address %s is not usable, scanning instead", address)
+            knownAddress = null
+            startDiscovery()
+            return
+        }
+        if (direct) {
+            Timber.i("connecting straight to %s", address)
+            directAttempt = true
+            autoReconnecting = false
+            _link.value = Link.Connecting
+        } else {
+            Timber.i("waiting for %s to appear", address)
+            directAttempt = false
+            autoReconnecting = true
+            _link.value = Link.Waiting
+        }
+        gatt = device.connectGatt(context, !direct, gattCallback, BluetoothDevice.TRANSPORT_LE)
+    }
+
+    /**
+     * Forget the remembered fan and look for a different one.
+     *
+     * Needed when the fan is replaced: the stored address would otherwise be
+     * waited on forever, since a fan that never appears is indistinguishable
+     * from one that is merely switched off.
+     */
+    fun forget() {
+        Timber.i("forgetting %s", knownAddress)
+        knownAddress = null
+        autoReconnecting = false
+        directAttempt = false
+        gatt?.let {
+            runCatching { it.disconnect() }
+            runCatching { it.close() }
+        }
+        gatt = null
+        characteristic = null
+        startDiscovery()
+    }
+
+    /** Whether a fan has been paired before, for the settings screen. */
+    fun hasKnownFan(): Boolean = knownAddress != null
+
     fun stop() {
         discovery?.cancel()
         discovery = null
+        autoReconnecting = false
         stopScan()
         gatt?.let {
             runCatching { it.disconnect() }
@@ -346,6 +443,11 @@ class HeadwindLink(
             )
             stopScan()
             _link.value = Link.Connecting
+            // autoConnect = false here: this is a direct connection to a fan we
+            // can see right now, which is much faster than the opportunistic
+            // path. The address is remembered so later runs can skip scanning.
+            knownAddress = device.address
+            autoReconnecting = false
             gatt = device.connectGatt(context, false, gattCallback, BluetoothDevice.TRANSPORT_LE)
         }
 
@@ -367,12 +469,33 @@ class HeadwindLink(
                 BluetoothProfile.STATE_DISCONNECTED -> {
                     Timber.w("disconnected (status %d)", status)
                     characteristic = null
+
+                    if (autoReconnecting) {
+                        // Leave the BluetoothGatt open: the stack is holding a
+                        // pending reconnect on it and close() would cancel it.
+                        // Nothing else to do — the fan being off is the normal
+                        // case, and waiting costs nothing.
+                        Timber.i("waiting for it to come back")
+                        _link.value = Link.Waiting
+                        return
+                    }
+
+                    val wasDirect = directAttempt
+                    directAttempt = false
                     this@HeadwindLink.gatt = null
                     runCatching { gatt.close() }
                     _link.value = Link.Lost
-                    // Fresh backoff: a fan that just vanished is worth looking
-                    // for promptly, unlike one that was never there.
-                    startDiscovery()
+
+                    val known = knownAddress
+                    when {
+                        // The fast attempt did not find it, so hand it to the
+                        // stack and stop spending anything on looking.
+                        known != null && wasDirect -> reconnectTo(known, direct = false)
+                        // Dropped while connected: worth one quick try before
+                        // settling back into waiting.
+                        known != null -> reconnectTo(known, direct = true)
+                        else -> startDiscovery()
+                    }
                 }
             }
         }
@@ -452,6 +575,8 @@ class HeadwindLink(
      * may have been left in heart-rate mode by whatever last talked to it.
      */
     private fun ready() {
+        // A connection that worked resets the direct-then-wait ladder.
+        directAttempt = false
         _link.value = Link.Ready
         commands.trySend(Command.Restore)
     }
@@ -463,6 +588,9 @@ class HeadwindLink(
     }
 
     private companion object {
+        /** Where the address of a fan we have already met is kept. */
+        const val KEY_ADDRESS = "fan_address"
+
         /** Standard Client Characteristic Configuration descriptor. */
         val CCCD_UUID: UUID = UUID.fromString("00002902-0000-1000-8000-00805f9b34fb")
 

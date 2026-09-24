@@ -90,7 +90,14 @@ being rejected in the Bluetooth controller. Left
 unbounded at `SCAN_MODE_LOW_LATENCY` that would run the radio flat out for a
 whole ride with the fan sitting at home — which is most rides.
 
-So discovery has to be bounded. What karoo-miefquirl settles on:
+So discovery has to be bounded, and better still avoided. karoo-miefquirl
+scans only until it has met a fan once, then remembers the address and connects
+to that directly — an address survives a rename, and costs nothing to keep.
+Measured on a Karoo 3: about 11 seconds to find a fan by scanning, about 7 to
+reconnect to a known one, and about 100 seconds for `autoConnect` to pick one
+up on its own from across a room, which is why that is only the fallback.
+
+For the first encounter, where scanning is unavoidable:
 
 | | |
 |---|---|

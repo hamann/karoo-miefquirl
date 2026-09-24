@@ -57,10 +57,13 @@ The field stays on `OFF` and tapping does nothing:
   start advertising again.
 - **A renamed fan.** Discovery looks for a device whose name starts with
   `HEADWIND`. A renamed one will not be found.
-- **Give it a moment.** After a few failed attempts it deliberately slows down
-  to looking once every five minutes, so as not to chew through your battery
-  hunting for a fan that is not there. Reopening the app starts the search
-  again immediately.
+- **Give it a moment.** Before it has ever met your fan it has to search, and
+  after a few failed attempts it deliberately slows to looking once every five
+  minutes rather than chewing through your battery hunting for something that
+  is not there. Reopening the app starts the search again immediately.
+- **A different fan.** Once it has connected to a fan it remembers that one
+  specifically, which is what lets it reconnect in a few seconds without
+  searching. If you have swapped fans, use **Forget this fan** in the app.
 
 ---
 

@@ -103,12 +103,25 @@ private fun MiefquirlScreen(link: HeadwindLink) {
             style = MaterialTheme.typography.bodySmall,
             textAlign = TextAlign.Center,
         )
+
+        // Only worth offering once there is something to forget. A replaced fan
+        // is otherwise indistinguishable from one that is merely switched off,
+        // and the extension would wait for the old one indefinitely.
+        if (remember { link.hasKnownFan() }) {
+            OutlinedButton(
+                onClick = { link.forget() },
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text("Forget this fan")
+            }
+        }
     }
 }
 
 private fun statusText(status: HeadwindLink.Link): String = when (status) {
     HeadwindLink.Link.Idle -> "Not started"
     HeadwindLink.Link.Scanning -> "Looking for the fan…"
+    HeadwindLink.Link.Waiting -> "Waiting for the fan to switch on"
     HeadwindLink.Link.Connecting -> "Connecting…"
     HeadwindLink.Link.Ready -> "Connected"
     HeadwindLink.Link.Lost -> "Lost the fan, retrying…"
